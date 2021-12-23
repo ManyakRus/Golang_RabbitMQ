@@ -64,6 +64,12 @@ func StartProducer() {
 		Body:         body,
 	})
 
+	err = amqpChannel.Publish("", queue.Name, false, false, amqp.Publishing{
+		DeliveryMode: amqp.Persistent,
+		ContentType:  "text/plain",
+		Body:         body,
+	})
+
 	if err != nil {
 		log.Fatalf("Error publishing message: %s", err)
 	}
@@ -103,26 +109,38 @@ func StartConsumer() {
 
 	go func() {
 		log.Printf("Consumer ready, PID: %d", os.Getpid())
-		for d := range messageChannel {
-			log.Printf("Received a message: %s", d.Body)
+		//var d Delivery
+	FOR_END:
+		for {
+			//d, err2 := <- messageChannel
 
-			addTask := &AddTask{}
+			select {
+			case d := <-messageChannel:
 
-			err := json.Unmarshal(d.Body, addTask)
+				log.Printf("Received a message: %s", d.Body)
 
-			if err != nil {
-				log.Printf("Error decoding JSON: %s", err)
-			}
+				addTask := &AddTask{}
 
-			log.Printf("Result of %d + %d is : %d", addTask.Number1, addTask.Number2, addTask.Number1+addTask.Number2)
+				err := json.Unmarshal(d.Body, addTask)
 
-			if err := d.Ack(false); err != nil {
-				log.Printf("Error acknowledging message : %s", err)
-			} else {
-				log.Printf("Acknowledged message")
+				if err != nil {
+					log.Printf("Error decoding JSON: %s", err)
+				}
+
+				log.Printf("Result of %d + %d is : %d", addTask.Number1, addTask.Number2, addTask.Number1+addTask.Number2)
+
+				if err := d.Ack(false); err != nil {
+					log.Printf("Error acknowledging message : %s", err)
+				} else {
+					log.Printf("Acknowledged message")
+				}
+			default:
+				break FOR_END
 			}
 
 		}
+
+		stopChan <- true
 	}()
 
 	// Остановка для завершения программы
