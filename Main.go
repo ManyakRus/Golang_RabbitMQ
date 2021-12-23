@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 
 	//"github.com/masnun/gopher-and-rabbit"
@@ -110,11 +111,17 @@ func StartConsumer() {
 	go func() {
 		log.Printf("Consumer ready, PID: %d", os.Getpid())
 		//var d Delivery
-	FOR_END:
+
+		timeChan := time.NewTimer(time.Second * 3).C
+
+	end_for:
 		for {
 			//d, err2 := <- messageChannel
 
 			select {
+			case <-timeChan:
+				fmt.Println("Time's up!")
+				break end_for
 			case d := <-messageChannel:
 
 				log.Printf("Received a message: %s", d.Body)
@@ -133,14 +140,16 @@ func StartConsumer() {
 					log.Printf("Error acknowledging message : %s", err)
 				} else {
 					log.Printf("Acknowledged message")
+					//time.Sleep(5*time.Second)
 				}
-			default:
-				break FOR_END
+
+				//default:
+				//break FOR_END
 			}
 
 		}
-
 		stopChan <- true
+
 	}()
 
 	// Остановка для завершения программы
